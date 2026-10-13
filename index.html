@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mongo Dojo: learn the MongoDB shell by typing</title>
+    <meta name="description" content="An interactive game for practising MongoDB CRUD syntax in the browser." />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="leaf" aria-hidden="true"></span>
+        <span>Mongo Dojo</span>
+      </div>
+      <div class="stats">
+        <span class="stat" title="Your rank"><span id="rank">Novice</span></span>
+        <span class="stat"><b id="xp">0</b> XP</span>
+        <span class="stat" title="Solved in a row without hints"><b id="streak">0</b> streak</span>
+        <button id="reset" class="ghost" type="button">Reset</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav id="map" class="map" aria-label="Chapters"></nav>
+
+      <main class="stage">
+        <section class="task">
+          <p id="crumb" class="crumb"></p>
+          <h1 id="title"></h1>
+          <details id="note" class="note" open>
+            <summary><span id="note-title"></span></summary>
+            <p id="note-body"></p>
+            <pre id="note-code"></pre>
+          </details>
+          <div id="prompt" class="prompt"></div>
+
+          <form id="form" autocomplete="off">
+            <label id="input-label" class="label" for="editor"></label>
+            <textarea id="editor" spellcheck="false" autocapitalize="off" autocorrect="off" rows="7"></textarea>
+            <input id="answer" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" />
+            <div class="actions">
+              <button id="run" class="primary" type="submit">Run</button>
+              <button id="hint" class="ghost" type="button">Hint</button>
+              <button id="reveal" class="ghost" type="button">Show answer</button>
+              <span class="grow"></span>
+              <button id="next" class="primary next" type="button" hidden>Next &rarr;</button>
+            </div>
+          </form>
+
+          <div id="console" class="console" aria-live="polite"></div>
+        </section>
+
+        <aside class="data">
+          <div class="data-head">
+            <span>Current data</span>
+            <span class="db">db: <b id="dbname"></b></span>
+          </div>
+          <div id="data" class="data-body"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="js/engine.js"></script>
+    <script src="js/lessons.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
