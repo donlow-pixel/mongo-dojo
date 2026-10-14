@@ -435,6 +435,292 @@
     },
 
     {
+      id: 'design',
+      title: 'Design: normalize or denormalize?',
+      blurb: 'Copy data into every view, or store it once and refer to it? Feel the trade-off.',
+      // Approach 2 from the slides: collections shaped around screens, data copied into each.
+      seed: () => ({
+        dbName: 'swim_coach',
+        cols: {
+          upcoming_sessions: [
+            {
+              _id: '5001',
+              datetime: '2022-01-10 10:00',
+              venue: 'Yishun Swimming Complex',
+              students: [
+                { _id: '2001', name: 'Benjamin Tan' },
+                { _id: '2002', name: 'Cindy Teo' },
+              ],
+            },
+            {
+              _id: '5002',
+              datetime: '2022-02-10 10:00',
+              venue: 'Ang Mo Kio Swimming Complex',
+              students: [{ _id: '2001', name: 'Benjamin Tan' }],
+            },
+            {
+              _id: '5003',
+              datetime: '2022-02-17 10:00',
+              venue: 'Yishun Swimming Complex',
+              students: [{ _id: '2002', name: 'Cindy Teo' }],
+            },
+          ],
+          customers: [
+            {
+              _id: '2001',
+              name: 'Benjamin Tan',
+              parent: { _id: '1001', name: 'Tan Ah Kow' },
+              sessions: [
+                { _id: '5001', datetime: '2022-01-10 10:00', venue: 'Yishun Swimming Complex' },
+                { _id: '5002', datetime: '2022-02-10 10:00', venue: 'Ang Mo Kio Swimming Complex' },
+              ],
+            },
+            {
+              _id: '2002',
+              name: 'Cindy Teo',
+              parent: { _id: '1002', name: 'Teo Ah De' },
+              sessions: [
+                { _id: '5001', datetime: '2022-01-10 10:00', venue: 'Yishun Swimming Complex' },
+                { _id: '5003', datetime: '2022-02-17 10:00', venue: 'Yishun Swimming Complex' },
+              ],
+            },
+          ],
+        },
+      }),
+      exercises: [
+        {
+          id: 'des-norm-q',
+          type: 'text',
+          title: 'Two ways to model',
+          note: {
+            title: 'From ER diagram to documents',
+            body: 'A swimming coach runs sessions at different pools. Parents pay for their children\'s sessions. You could store this data in two quite different ways:<br><strong>One collection per entity</strong> (<code>students</code>, <code>sessions</code>, <code>venues</code>, …). Each fact is stored once, and documents point to each other by <code>_id</code>.<br><strong>One collection per feature or screen</strong> (e.g. <code>upcoming_sessions</code>, <code>customers</code>). Each document already holds everything its screen shows, so the same fact is copied into many places.',
+            code: '// one collection per entity: store once, refer by id\nstudents: { _id: "2001", name: "Benjamin Tan", session_ids: ["5001"] }\nsessions: { _id: "5001", venue_id: "404" }\n\n// one collection per screen: copy what the screen needs\ncustomers: {\n  _id: "2001", name: "Benjamin Tan",\n  sessions: [ { _id: "5001", venue: "Yishun Swimming Complex" } ]\n}',
+          },
+          prompt: 'What is the name for the <strong>one collection per entity</strong> design, where each fact is stored once and documents refer to each other by id?',
+          answers: ['normalized', 'normalised', 'normalization', 'normalisation', 'normalized design', 'normalised design'],
+          explain: 'Normalized: no duplicates, one source of truth.',
+          hints: ['It is the same term used for relational (SQL) table design.', 'The other approach is the same word with "de" in front.'],
+        },
+        {
+          id: 'des-denorm-q',
+          type: 'text',
+          title: 'And the other one',
+          prompt: 'And what is the name for the <strong>one collection per feature</strong> design, where data is copied into every document that displays it?',
+          answers: ['denormalized', 'denormalised', 'de-normalized', 'de-normalised', 'denormalization', 'denormalisation'],
+          explain: 'Denormalized: duplicated data, shaped for fast reads. Many MongoDB developers prefer it, but keeping the copies consistent is up to you.',
+          hints: ['Put "de" in front of the previous answer.'],
+        },
+        {
+          id: 'des-embed-insert',
+          type: 'cmd',
+          title: 'A new customer',
+          note: {
+            title: 'A denormalized collection',
+            body: 'The data panel now shows <code>swim_coach</code> built the denormalized way. <code>upcoming_sessions</code> feeds the "Upcoming sessions" screen and <code>customers</code> feeds the "Customers" screen. Each customer document <strong>embeds</strong> a copy of the parent and of the sessions, so the screen gets everything it needs from a single document with no extra lookups.',
+            code: '{\n  _id: "2001",\n  name: "Benjamin Tan",\n  parent: { _id: "1001", name: "Tan Ah Kow" },   // embedded copy\n  sessions: [ ... ]                               // embedded copies\n}',
+          },
+          prompt: 'A new student signs up. Insert into <code>customers</code>:<ul><li><code>_id</code>: "2003"</li><li><code>name</code>: "Rachel Lee"</li><li><code>parent</code>: an embedded object with <code>_id</code> "1003" and <code>name</code> "Sharon Lee"</li><li><code>sessions</code>: an empty array</li></ul><p class="aside">The ids in this chapter are strings, as in the class examples, so no ObjectId() this time.</p>',
+          hints: [
+            'An embedded object is just an object as a value: <code>parent: { _id: "1003", name: "Sharon Lee" }</code>.',
+            'Full shape: <code>db.customers.insertOne({ _id: "2003", name: "Rachel Lee", parent: { ... }, sessions: [] })</code>.',
+          ],
+          solution:
+            'db.customers.insertOne({\n  _id: "2003",\n  name: "Rachel Lee",\n  parent: { _id: "1003", name: "Sharon Lee" },\n  sessions: []\n})',
+        },
+        {
+          id: 'des-rename-1',
+          type: 'cmd',
+          title: 'The pool gets a new name',
+          note: {
+            title: 'Updating many documents',
+            body: '<code>updateOne</code> stops after the first match. <code>updateMany</code> changes <strong>every</strong> document that matches the filter.',
+            code: 'db.pets.updateMany(\n  { type: "Dog" },\n  { $set: { needs_walk: true } }\n)',
+          },
+          prompt: '"Yishun Swimming Complex" has been renamed to "Yishun Aquatic Centre". Update every document in <code>upcoming_sessions</code> whose <code>venue</code> is the old name.',
+          hints: [
+            'Two sessions are at Yishun, so <code>updateOne</code> will not be enough.',
+            '<code>db.upcoming_sessions.updateMany({ venue: "Yishun Swimming Complex" }, { $set: { venue: "Yishun Aquatic Centre" } })</code>',
+          ],
+          solution:
+            'db.upcoming_sessions.updateMany(\n  { venue: "Yishun Swimming Complex" },\n  { $set: { venue: "Yishun Aquatic Centre" } }\n)',
+        },
+        {
+          id: 'des-inconsistent-q',
+          type: 'text',
+          title: 'Spot the problem',
+          prompt: 'Now look at <code>customers</code> in the data panel. The session list there still says "Yishun Swimming Complex", while <code>upcoming_sessions</code> says "Yishun Aquatic Centre". The database now contradicts itself. In one word, the data is now…?',
+          answers: ['inconsistent', 'inconsistency', 'data inconsistency', 'not consistent', 'stale', 'out of sync', 'outdated', 'duplicated', 'contradictory'],
+          explain: 'In a denormalized design, every copy has to be updated. Miss one and different screens show different "truths".',
+          hints: ['The opposite of consistent.'],
+        },
+        {
+          id: 'des-rename-2',
+          type: 'cmd',
+          title: 'Hunt down every copy',
+          prompt: 'Fix <code>customers</code>: for every customer, set the <code>venue</code> of every session that still says "Yishun Swimming Complex" to "Yishun Aquatic Centre".<p class="aside">Careful: Cindy has <em>two</em> Yishun sessions in her array.</p>',
+          hints: [
+            'The positional <code>$</code> only changes the first matching element in each document, so Cindy would keep one stale copy.',
+            'Use <code>updateMany</code> with <code>"sessions.$[s].venue"</code> and <code>{ arrayFilters: [ { "s.venue": "Yishun Swimming Complex" } ] }</code>.',
+          ],
+          solution:
+            'db.customers.updateMany(\n  {},\n  { $set: { "sessions.$[s].venue": "Yishun Aquatic Centre" } },\n  { arrayFilters: [ { "s.venue": "Yishun Swimming Complex" } ] }\n)',
+        },
+        {
+          id: 'des-typo',
+          type: 'cmd',
+          title: 'A typo, everywhere',
+          prompt: 'Cindy\'s surname was misspelled: it should be "Cindy Teoh". Her student id is "2002". Fix her name <strong>everywhere</strong> it is stored, which includes her customer document and each upcoming session she is in.<p class="aside">You can write more than one command in the editor. Put each on its own line and they run in order.</p>',
+          hints: [
+            'Two collections need changing. Use one command for each.',
+            'Customers: <code>db.customers.updateOne({ _id: "2002" }, { $set: { name: "Cindy Teoh" } })</code>.',
+            'Sessions: <code>db.upcoming_sessions.updateMany({ "students._id": "2002" }, { $set: { "students.$.name": "Cindy Teoh" } })</code>.',
+          ],
+          solution:
+            'db.customers.updateOne({ _id: "2002" }, { $set: { name: "Cindy Teoh" } })\ndb.upcoming_sessions.updateMany(\n  { "students._id": "2002" },\n  { $set: { "students.$.name": "Cindy Teoh" } }\n)',
+        },
+        {
+          id: 'des-size-q',
+          type: 'text',
+          title: 'How big can it grow?',
+          prompt: 'Embedding everything in one document has a hard limit. What is the maximum size of a single MongoDB document, in MB?',
+          answers: ['16', '16mb', '16 mb', '16 megabytes', 'sixteen'],
+          explain: '16 MB. An array that grows forever, like every payment ever made, can eventually hit it.',
+          hints: ['It is a power of two between 10 and 20.'],
+        },
+
+        // ---- the normalized version of the same data ----
+        {
+          id: 'des-ref-rename',
+          type: 'cmd',
+          title: 'The normalized way',
+          seed: () => ({
+            dbName: 'swim_coach',
+            cols: {
+              parents: [
+                { _id: '1001', name: 'Tan Ah Kow' },
+                { _id: '1002', name: 'Teo Ah De' },
+              ],
+              students: [
+                { _id: '2001', name: 'Benjamin Tan', parent_id: '1001', session_ids: ['5001', '5002'] },
+                { _id: '2002', name: 'Cindy Teoh', parent_id: '1002', session_ids: ['5001', '5003'] },
+              ],
+              sessions: [
+                { _id: '5001', datetime: '2022-01-10 10:00', venue_id: '404' },
+                { _id: '5002', datetime: '2022-02-10 10:00', venue_id: '405' },
+                { _id: '5003', datetime: '2022-02-17 10:00', venue_id: '404' },
+              ],
+              venues: [
+                { _id: '404', name: 'Yishun Swimming Complex' },
+                { _id: '405', name: 'Ang Mo Kio Swimming Complex' },
+                { _id: '406', name: 'Boon Lay Sports Complex' },
+              ],
+            },
+          }),
+          note: {
+            title: 'A normalized collection set: references',
+            body: 'The data panel now shows the same business stored the normalized way: one collection per entity. Instead of copying a venue\'s name into every session, a session stores only <code>venue_id</code>, a <strong>reference</strong> to a document in <code>venues</code>. Students refer to their parent with <code>parent_id</code> and to their sessions with an array of ids, <code>session_ids</code>.',
+            code: 'sessions: { _id: "5001", venue_id: "404" }\nvenues:   { _id: "404",  name: "Yishun Swimming Complex" }',
+          },
+          prompt: 'The same renaming again: venue "404" becomes "Yishun Aquatic Centre". Make the change in this design.',
+          hints: ['The name is stored in exactly one place: the <code>venues</code> document with <code>_id</code> "404".'],
+          solution: 'db.venues.updateOne({ _id: "404" }, { $set: { name: "Yishun Aquatic Centre" } })',
+        },
+        {
+          id: 'des-count-q',
+          type: 'text',
+          title: 'Count the changes',
+          prompt: 'In the denormalized design, the rename took two commands and changed four documents across two collections. How many documents did you change this time?',
+          answers: ['1', 'one', '1 document', 'one document'],
+          explain: 'One. Every session that refers to venue "404" picks up the new name automatically. This single source of truth is the main payoff of normalizing.',
+          hints: ['Count the <code>updateOne</code> calls you made, and how many documents each changed.'],
+        },
+        {
+          id: 'des-ref-push',
+          type: 'cmd',
+          title: 'Booking by reference',
+          prompt: 'Benjamin (student "2001") signs up for session "5003". In this design a booking is just a reference: add the id "5003" to his <code>session_ids</code> array.',
+          hints: ['You are pushing a plain string onto an array: <code>{ $push: { session_ids: "5003" } }</code>.'],
+          must: [{ re: /\$push|\$addToSet/, msg: 'The data is right, but add the reference with <code>$push</code>.' }],
+          solution: 'db.students.updateOne({ _id: "2001" }, { $push: { session_ids: "5003" } })',
+        },
+        {
+          id: 'des-ref-payment',
+          type: 'cmd',
+          title: 'A payment, in its own collection',
+          note: {
+            title: 'Referencing from the "many" side',
+            body: 'A parent may make hundreds of payments over the years. Embedding all of them in one document would make it grow forever, so each payment becomes its own document holding references to the student and the session it pays for.',
+            code: 'payments: {\n  _id: "501", mode: "CC", amount: 50,\n  student_id: "2001", session_id: "5001"\n}',
+          },
+          prompt: 'Record Benjamin\'s payment for session "5003" in a new <code>payments</code> collection:<ul><li><code>_id</code>: "503"</li><li><code>mode</code>: "PayNow"</li><li><code>amount</code>: 50</li><li><code>student_id</code>: "2001"</li><li><code>session_id</code>: "5003"</li></ul>',
+          hints: ['<code>db.payments.insertOne({ _id: "503", mode: "PayNow", amount: 50, student_id: "2001", session_id: "5003" })</code>. The collection is created by the insert.'],
+          solution:
+            'db.payments.insertOne({\n  _id: "503",\n  mode: "PayNow",\n  amount: 50,\n  student_id: "2001",\n  session_id: "5003"\n})',
+        },
+        {
+          id: 'des-ref-find',
+          type: 'cmd',
+          read: true,
+          title: 'The price of references',
+          note: {
+            title: 'Following references: $in',
+            body: 'With references, one screen can need several queries: first read the student to get the ids, then fetch the documents they point to. <code>$in</code> matches any value in a list, which is handy for fetching every referenced document in one go.',
+            code: 'db.pets.find({ _id: { $in: ["p1", "p7", "p9"] } })',
+          },
+          prompt: 'Cindy\'s <code>session_ids</code> are "5001" and "5003". Write a <code>find</code> that returns exactly those two documents from <code>sessions</code>.',
+          hints: [
+            'Filter on <code>_id</code> with <code>$in</code> and an array of the two ids.',
+            '<code>db.sessions.find({ _id: { $in: ["5001", "5003"] } })</code>',
+          ],
+          must: [{ re: /\$in/, msg: 'Right documents! Now do it with a single <code>$in</code> filter.' }],
+          solution: 'db.sessions.find({ _id: { $in: ["5001", "5003"] } })',
+        },
+        {
+          id: 'des-venue-q',
+          type: 'text',
+          title: 'Who remembers Boon Lay?',
+          prompt: 'Boon Lay Sports Complex has no sessions yet. Which design can still record that the venue exists: normalized or denormalized?',
+          answers: ['normalized', 'normalised', 'normalized design', 'the normalized one', 'normalised design'],
+          explain: 'A view-shaped (denormalized) collection only knows about venues that appear in some session. A separate <code>venues</code> collection can hold all of them.',
+          hints: ['In the denormalized data, a venue only existed as text inside a session.'],
+        },
+        {
+          id: 'des-embed-q1',
+          type: 'text',
+          title: 'Embed or reference? (1/3)',
+          note: {
+            title: 'Rules of thumb',
+            body: '<strong>Embed</strong> when the data belongs to its parent, is read together with it, and stays small, for example one-to-one or "one-to-few".<br><strong>Reference</strong> when the data is shared by many documents and must stay consistent, when it grows without limit, or when it must exist on its own.',
+            code: '',
+          },
+          prompt: 'Each user has exactly one profile (picture and intro), and it is always shown together with the user. Should the profile be embedded or referenced? <em>Answer <code>embed</code> or <code>reference</code>.</em>',
+          answers: ['embed', 'embedded', 'embedding'],
+          explain: 'One-to-one and always read together: embed it.',
+          hints: ['How many profiles per user? Is it ever shown on its own?'],
+        },
+        {
+          id: 'des-embed-q2',
+          type: 'text',
+          title: 'Embed or reference? (2/3)',
+          prompt: 'Every parent\'s payment history grows by dozens of payments a year, forever. Embed the payments in the parent document, or reference them? <em>Answer <code>embed</code> or <code>reference</code>.</em>',
+          answers: ['reference', 'referenced', 'references', 'referencing', 'ref'],
+          explain: 'An array that grows without limit heads towards the 16 MB cap, so keep payments in their own collection.',
+          hints: ['Remember the document size limit.'],
+        },
+        {
+          id: 'des-embed-q3',
+          type: 'text',
+          title: 'Embed or reference? (3/3)',
+          prompt: 'A venue\'s name appears on many sessions, venues get renamed now and then, and the coach wants one source of truth. Embed or reference? <em>Answer <code>embed</code> or <code>reference</code>.</em>',
+          answers: ['reference', 'referenced', 'references', 'referencing', 'ref'],
+          explain: 'It is shared and it changes, so reference it. You felt why in the rename steps.',
+          hints: ['Think back to how many commands the rename needed in each design.'],
+        },
+      ],
+    },
+
+    {
       id: 'final',
       title: 'Final mission: fake_school',
       blurb: 'No lesson notes. Build and maintain a school database from scratch.',
@@ -526,6 +812,7 @@
   for (const ch of chapters) {
     let state = ch.seed();
     for (const ex of ch.exercises) {
+      if (ex.seed) state = ex.seed();
       ex.before = clone(state);
       if (ex.type !== 'cmd') continue;
       const res = run(ex.solution, state);
@@ -552,9 +839,10 @@
     const state = clone(ex.before);
     const res = run(input, state);
     if (res.error) return { status: 'error', error: res.error };
+    const out = { state, value: res.value, text: res.text };
+    if (ex.read) return Object.assign(out, gradeRead(ex, input, state, res));
     const want = clone(ex.before);
     run(ex.solution, want);
-    const out = { state, value: res.value, text: res.text };
     if (equal(state, want, true)) {
       const miss = (ex.must || []).find((m) => !m.re.test(input));
       if (miss) return Object.assign(out, { status: 'wrong', reasons: [miss.msg], html: true });
@@ -563,6 +851,33 @@
     const wrote = res.value && res.value.acknowledged;
     if (!wrote && equal(state, ex.before)) return Object.assign(out, { status: 'info' });
     return Object.assign(out, { status: 'wrong', reasons: explain(state, want, ex.before) });
+  }
+
+  // Read exercises are graded on the documents the query returns.
+  function gradeRead(ex, input, state, res) {
+    if (!equal(state, ex.before)) {
+      return { status: 'wrong', reasons: ['This step only reads data. Use find() rather than changing anything (nothing was saved).'] };
+    }
+    const docsOf = (v) => (v instanceof Cursor ? v.docs : v == null ? [] : Array.isArray(v) ? v : [v]);
+    if (res.text !== undefined || !(res.value instanceof Cursor || (res.value && typeof res.value === 'object'))) {
+      const msg = typeof res.value === 'number'
+        ? 'That returned a number, not documents. Drop the .count() so find() returns the documents themselves.'
+        : 'Return the matching documents themselves, e.g. with db.<collection>.find({ ... }).';
+      return { status: 'wrong', reasons: [msg] };
+    }
+    const got = docsOf(res.value);
+    const want = docsOf(run(ex.solution, clone(ex.before)).value);
+    const same = got.length === want.length && want.every((d) => got.some((g) => equal(g, d, true)));
+    if (!same) {
+      const n = (k) => k + ' document' + (k === 1 ? '' : 's');
+      return {
+        status: 'wrong',
+        reasons: [got.length === want.length ? 'Your query returned ' + n(got.length) + ', but not the right ones.' : 'Your query returned ' + n(got.length) + ', but ' + want.length + ' are expected.'],
+      };
+    }
+    const miss = (ex.must || []).find((m) => !m.re.test(input));
+    if (miss) return { status: 'wrong', reasons: [miss.msg], html: true };
+    return { status: 'ok' };
   }
 
   root.Course = { chapters, check };

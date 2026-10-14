@@ -630,7 +630,7 @@
         if (i < 0) continue;
         const diffs = [];
         fieldDiffs(g[i], doc, '', diffs);
-        const label = doc.name !== undefined ? show(doc.name) : 'a document';
+        const label = doc.name !== undefined ? show(doc.name) : doc._id !== undefined ? 'document ' + show(doc._id) : 'a document';
         diffs.forEach((d) => out.push('In ' + label + ': ' + d + '.'));
         g.splice(i, 1);
       }

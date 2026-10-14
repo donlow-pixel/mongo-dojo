@@ -2,12 +2,13 @@
 
 An interactive browser game for practising MongoDB shell (CRUD) syntax. Learners type real commands; a small in-memory imitation of the Mongo shell runs them and grades the resulting data.
 
-Four chapters, 33 steps:
+Five chapters, 50 steps:
 
 1. Create & insert (`use`, `insertOne`, `insertMany`, arrays, `ISODate`)
 2. Update & delete (`updateOne` + `$set`, `deleteOne`)
 3. Arrays & sub-documents (`$push`, `$pull`, `$elemMatch`, positional `$`, `arrayFilters`, `$unset`)
-4. Final mission: build and maintain the `fake_school` database with no lesson notes
+4. Design: normalize or denormalize? (the swimming-coach example: embedded copies vs references, `updateMany`, `$in`, embed-or-reference decisions)
+5. Final mission: build and maintain the `fake_school` database with no lesson notes
 
 ## Run locally
 

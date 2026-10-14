@@ -167,6 +167,7 @@
       el.noteTitle.textContent = ex.note.title;
       el.noteBody.innerHTML = ex.note.body;
       el.noteCode.textContent = ex.note.code;
+      el.noteCode.hidden = !ex.note.code;
     }
 
     el.editor.hidden = !isCmd;
